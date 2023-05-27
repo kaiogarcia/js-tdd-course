@@ -1,14 +1,42 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 
-const Footer = ({ onFavorites }) => {
+const Header = () => {
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.favoriteButton} onPress={onFavorites}>
-        <FontAwesome name="heart" size={24} color="#040404" />
-      </TouchableOpacity>
+      <FontAwesome name="github" color="#040404" size={24} />
+      <Text style={styles.title}>GitHub App</Text>
     </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#040404',
+    padding: 10,
+  },
+  title: {
+    color: '#FFF',
+    fontSize: 18,
+    marginLeft: 10,
+  },
+});
+
+export default Header;
+
+import React from 'react';
+import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
+
+const SearchButton = ({ onPress }) => {
+  return (
+    <TouchableOpacity style={styles.container} onPress={onPress}>
+      <FontAwesome name="search" color="#040404" size={20} />
+      <Text style={styles.text}>Buscar</Text>
+    </TouchableOpacity>
   );
 };
 
@@ -18,52 +46,99 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F5F5F5',
     padding: 10,
+    borderRadius: 5,
   },
-  favoriteButton: {
-    marginLeft: 'auto',
+  text: {
+    marginLeft: 5,
+    color: '#040404',
+    fontSize: 16,
   },
 });
 
-export default Footer;
+export default SearchButton;
 
+import React from 'react';
+import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
+
+const FavoritesButton = ({ onPress }) => {
+  return (
+    <TouchableOpacity style={styles.container} onPress={onPress}>
+      <FontAwesome name="heart" color="#040404" size={20} />
+      <Text style={styles.text}>Favoritos</Text>
+    </TouchableOpacity>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    padding: 10,
+    borderRadius: 5,
+  },
+  text: {
+    marginLeft: 5,
+    color: '#040404',
+    fontSize: 16,
+  },
+});
+
+export default FavoritesButton;
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, ImageBackground, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ImageBackground } from 'react-native';
 import axios from 'axios';
 
-const UsersScreen = () => {
+const UserList = () => {
   const [users, setUsers] = useState([]);
 
   useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await axios.get('https://api.github.com/search/users?q=rgmellon');
+        setUsers(response.data.items);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
     fetchUsers();
   }, []);
 
-  const fetchUsers = async () => {
-    try {
-      const response = await axios.get('https://api.github.com/search/users?q=rgmellon');
-      setUsers(response.data.items);
-    } catch (error) {
-      console.error(error);
-    }
+  const renderUserItem = ({ item }) => {
+    return (
+      <View style={styles.userItem}>
+        <ImageBackground
+          source={{ uri: item.avatar_url }}
+          style={styles.avatar}
+          resizeMode="cover"
+        >
+          <Text style={styles.username}>{item.login}</Text>
+        </ImageBackground>
+      </View>
+    );
   };
 
   return (
     <View style={styles.container}>
-      <ImageBackground
-        source={{ uri: 'https://github.githubassets.com/images/modules/logos_page/Octocat.png' }}
-        style={styles.backgroundImage}
-      >
+      {users.length === 0 ? (
+        <ImageBackground
+          source={{ uri: 'https://github.githubassets.com/images/modules/logos_page/Octocat.png' }}
+          style={styles.emptyBackground}
+          resizeMode="contain"
+        >
+          <Text style={styles.emptyText}>Está meio vazio por aqui! Busque por um usuário</Text>
+        </ImageBackground>
+      ) : (
         <FlatList
           data={users}
+          renderItem={renderUserItem}
           keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.userContainer}>
-              <Text>{item.login}</Text>
-              {/* Renderizar outras informações do usuário, se necessário */}
-            </View>
-          )}
+          contentContainerStyle={styles.userList}
         />
-      </ImageBackground>
+      )}
     </View>
   );
 };
@@ -73,55 +148,74 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FDFDFD',
   },
-  backgroundImage: {
+  emptyBackground: {
     flex: 1,
-    resizeMode: 'cover',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
-  userContainer: {
-    backgroundColor: '#7EB6FF',
+  emptyText: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#040404',
+  },
+  userList: {
     padding: 10,
-    margin: 10,
-    borderRadius: 5,
+  },
+  userItem: {
+    marginBottom: 10,
+  },
+  avatar: {
+    height: 150,
+    justifyContent: 'flex-end',
+    padding: 10,
+  },
+  username: {
+    fontSize: 16,
+    color: '#FFF',
+    fontWeight: 'bold',
   },
 });
 
-export default UsersScreen;
+export default UserList;
 
   
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+ import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList } from 'react-native';
 import axios from 'axios';
 
-const RepositoriesScreen = ({ route }) => {
+const RepositoryList = ({ username }) => {
   const [repositories, setRepositories] = useState([]);
 
   useEffect(() => {
-    fetchRepositories();
-  }, []);
+    const fetchRepositories = async () => {
+      try {
+        const response = await axios.get(`https://api.github.com/users/${username}/repos`);
+        setRepositories(response.data);
+      } catch (error) {
+        console.log(error);
+      }
+    };
 
-  const fetchRepositories = async () => {
-    try {
-      const response = await axios.get(`https://api.github.com/users/${route.params.username}/repos`);
-      setRepositories(response.data);
-    } catch (error) {
-      console.error(error);
-    }
+    fetchRepositories();
+  }, [username]);
+
+  const renderRepositoryItem = ({ item }) => {
+    return (
+      <View style={styles.repositoryItem}>
+        <Text style={styles.repositoryName}>{item.name}</Text>
+        <Text style={styles.repositoryDescription}>{item.description}</Text>
+      </View>
+    );
   };
 
   return (
     <View style={styles.container}>
       <FlatList
         data={repositories}
+        renderItem={renderRepositoryItem}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.repositoryContainer}>
-            <Text style={styles.title}>{item.name}</Text>
-            <Text style={styles.description}>{item.description}</Text>
-            {/* Renderizar outras informações do repositório, se necessário */}
-          </View>
-        )}
+        contentContainerStyle={styles.repositoryList}
       />
     </View>
   );
@@ -131,168 +225,84 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FDFDFD',
-  },
-  repositoryContainer: {
-    backgroundColor: '#FDFDFD',
     padding: 10,
-    marginVertical: 5,
-    marginHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#D6D6D6',
   },
-  title: {
+  repositoryList: {
+    paddingBottom: 10,
+  },
+  repositoryItem: {
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#7EB6FF',
+    padding: 10,
+    borderRadius: 5,
+  },
+  repositoryName: {
+    fontSize: 16,
     color: '#040404',
     fontWeight: 'bold',
   },
-  description: {
+  repositoryDescription: {
+    fontSize: 14,
     color: '#D6D6D6',
+    marginTop: 5,
   },
 });
 
-export default RepositoriesScreen;
+export default RepositoryList;
 
-      
-      
-      
-      
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const FavoritesScreen = () => {
-  const [favorites, setFavorites] = useState([]);
-
-  useEffect(() => {
-    fetchFavorites();
-  }, []);
-
-  const fetchFavorites = async () => {
-    try {
-      const data = await AsyncStorage.getItem('favorites');
-      if (data) {
-        setFavorites(JSON.parse(data));
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  return (
-    <View style={styles.container}>
-      <FlatList
-        data={favorites}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.favoriteContainer}>
-            <Text>{item.login}</Text>
-            {/* Renderizar outras informações do usuário favorito, se necessário */}
-          </View>
-        )}
-      />
-    </View>
-  );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FDFDFD',
-  },
-  favoriteContainer: {
-    backgroundColor: '#FDFDFD',
-    padding: 10,
-    marginVertical: 5,
-    marginHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#D6D6D6',
-  },
-});
-
-export default FavoritesScreen;
-
-      
-      
       
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { FontAwesome } from '@expo/vector-icons';
+import Header from './components/Header';
+import SearchButton from './components/SearchButton';
+import FavoritesButton from './components/FavoritesButton';
+import UserList from './components/UserList';
+import RepositoryList from './components/RepositoryList';
 
-import Header from './src/components/Header';
-import Footer from './src/components/Footer';
-import UsersScreen from './src/screens/UsersScreen';
-import RepositoriesScreen from './src/screens/RepositoriesScreen';
-import FavoritesScreen from './src/screens/FavoritesScreen';
-
-const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const App = () => {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Main">
-        <Stack.Screen
-          name="Main"
-          component={MainScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
+      <Header />
+      <Tab.Navigator
+        tabBarOptions={{
+          style: {
+            backgroundColor: '#F5F5F5',
+            borderTopColor: '#040404',
+            borderTopWidth: 1,
+          },
+          activeTintColor: '#040404',
+          inactiveTintColor: '#D6D6D6',
+        }}
+      >
+        <Tab.Screen
           name="Users"
-          component={UsersScreen}
+          component={UserList}
           options={{
-            headerTitle: () => <Header />,
-            headerStyle: { backgroundColor: '#040404' },
+            tabBarLabel: 'Usuários',
+            tabBarIcon: ({ color, size }) => (
+              <FontAwesome name="users" color={color} size={size} />
+            ),
+            tabBarRightButton: () => <SearchButton onPress={() => {}} />,
           }}
         />
-        <Stack.Screen
-          name="Repositories"
-          component={RepositoriesScreen}
-          options={({ route }) => ({
-            headerTitle: route.params.username,
-            headerStyle: { backgroundColor: '#040404' },
-            headerTintColor: '#FFF',
-          })}
-        />
-        <Stack.Screen
+        <Tab.Screen
           name="Favorites"
-          component={FavoritesScreen}
+          component={FavoritesButton}
           options={{
-            headerTitle: 'Favorites',
-            headerStyle: { backgroundColor: '#040404' },
-            headerTintColor: '#FFF',
+            tabBarLabel: 'Favoritos',
+            tabBarIcon: ({ color, size }) => (
+              <FontAwesome name="heart" color={color} size={size} />
+            ),
+            tabBarRightButton: () => <FavoritesButton onPress={() => {}} />,
           }}
         />
-      </Stack.Navigator>
+      </Tab.Navigator>
     </NavigationContainer>
-  );
-};
-
-const MainScreen = () => {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-
-          if (route.name === 'Users') {
-            iconName = focused ? 'users' : 'users';
-          } else if (route.name === 'Favorites') {
-            iconName = focused ? 'heart' : 'heart-o';
-          }
-
-          return <FontAwesome name={iconName} size={size} color={color} />;
-        },
-      })}
-      tabBarOptions={{
-        activeTintColor: '#040404',
-        inactiveTintColor: 'gray',
-        style: { backgroundColor: '#F5F5F5' },
-      }}
-    >
-      <Tab.Screen name="Users" component={UsersScreen} />
-      <Tab.Screen name="Favorites" component={FavoritesScreen} />
-    </Tab.Navigator>
   );
 };
 
