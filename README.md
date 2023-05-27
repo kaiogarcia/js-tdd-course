@@ -1,95 +1,36 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const Header = () => {
-  return (
-    <View style={styles.container}>
-      <FontAwesome name="github" color="#040404" size={24} />
-      <Text style={styles.title}>GitHub App</Text>
-    </View>
-  );
+export const storeData = async (key, value) => {
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.log(error);
+  }
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#040404',
-    padding: 10,
-  },
-  title: {
-    color: '#FFF',
-    fontSize: 18,
-    marginLeft: 10,
-  },
-});
-
-export default Header;
-
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
-
-const SearchButton = ({ onPress }) => {
-  return (
-    <TouchableOpacity style={styles.container} onPress={onPress}>
-      <FontAwesome name="search" color="#040404" size={20} />
-      <Text style={styles.text}>Buscar</Text>
-    </TouchableOpacity>
-  );
+export const getData = async (key) => {
+  try {
+    const value = await AsyncStorage.getItem(key);
+    return value !== null ? JSON.parse(value) : null;
+  } catch (error) {
+    console.log(error);
+  }
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    padding: 10,
-    borderRadius: 5,
-  },
-  text: {
-    marginLeft: 5,
-    color: '#040404',
-    fontSize: 16,
-  },
-});
-
-export default SearchButton;
-
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
-
-const FavoritesButton = ({ onPress }) => {
-  return (
-    <TouchableOpacity style={styles.container} onPress={onPress}>
-      <FontAwesome name="heart" color="#040404" size={20} />
-      <Text style={styles.text}>Favoritos</Text>
-    </TouchableOpacity>
-  );
+export const removeData = async (key) => {
+  try {
+    await AsyncStorage.removeItem(key);
+  } catch (error) {
+    console.log(error);
+  }
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    padding: 10,
-    borderRadius: 5,
-  },
-  text: {
-    marginLeft: 5,
-    color: '#040404',
-    fontSize: 16,
-  },
-});
-
-export default FavoritesButton;
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ImageBackground } from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
 import axios from 'axios';
+import { storeData, getData, removeData } from '../utils/storage';
 
 const UserList = () => {
   const [users, setUsers] = useState([]);
@@ -107,7 +48,25 @@ const UserList = () => {
     fetchUsers();
   }, []);
 
+  const handleFavorite = async (user) => {
+    const favorites = await getData('favorites');
+    if (favorites) {
+      const isFavorite = favorites.find((favorite) => favorite.id === user.id);
+      if (isFavorite) {
+        const updatedFavorites = favorites.filter((favorite) => favorite.id !== user.id);
+        await storeData('favorites', updatedFavorites);
+      } else {
+        await storeData('favorites', [...favorites, user]);
+      }
+    } else {
+      await storeData('favorites', [user]);
+    }
+  };
+
   const renderUserItem = ({ item }) => {
+    const favorites = getData('favorites');
+    const isFavorite = favorites && favorites.find((favorite) => favorite.id === item.id);
+
     return (
       <View style={styles.userItem}>
         <ImageBackground
@@ -116,6 +75,13 @@ const UserList = () => {
           resizeMode="cover"
         >
           <Text style={styles.username}>{item.login}</Text>
+          <TouchableOpacity onPress={() => handleFavorite(item)} style={styles.favoriteButton}>
+            <FontAwesome
+              name={isFavorite ? 'heart' : 'heart-o'}
+              color={isFavorite ? 'red' : 'white'}
+              size={24}
+            />
+          </TouchableOpacity>
         </ImageBackground>
       </View>
     );
@@ -148,17 +114,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FDFDFD',
   },
-  emptyBackground: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  emptyText: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: '#040404',
-  },
   userList: {
     padding: 10,
   },
@@ -166,57 +121,96 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   avatar: {
-    height: 150,
+    height: 200,
     justifyContent: 'flex-end',
-    padding: 10,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   username: {
     fontSize: 16,
-    color: '#FFF',
     fontWeight: 'bold',
+    color: '#040404',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    padding: 10,
+    paddingBottom: 5,
+    color: '#FDFDFD',
+  },
+  favoriteButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    padding: 10,
+  },
+  emptyBackground: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#040404',
+    textAlign: 'center',
   },
 });
 
 export default UserList;
 
   
- import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
-import axios from 'axios';
+  
+  import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
+import { getData, removeData } from '../utils/storage';
 
-const RepositoryList = ({ username }) => {
-  const [repositories, setRepositories] = useState([]);
+const FavoritesButton = () => {
+  const [favorites, setFavorites] = useState([]);
 
   useEffect(() => {
-    const fetchRepositories = async () => {
-      try {
-        const response = await axios.get(`https://api.github.com/users/${username}/repos`);
-        setRepositories(response.data);
-      } catch (error) {
-        console.log(error);
+    const fetchFavorites = async () => {
+      const storedFavorites = await getData('favorites');
+      if (storedFavorites) {
+        setFavorites(storedFavorites);
       }
     };
 
-    fetchRepositories();
-  }, [username]);
+    fetchFavorites();
+  }, []);
 
-  const renderRepositoryItem = ({ item }) => {
+  const handleRemoveFavorite = async (userId) => {
+    await removeData('favorites');
+    const updatedFavorites = favorites.filter((favorite) => favorite.id !== userId);
+    if (updatedFavorites.length > 0) {
+      await storeData('favorites', updatedFavorites);
+    }
+    setFavorites(updatedFavorites);
+  };
+
+  const renderFavoriteItem = ({ item }) => {
     return (
-      <View style={styles.repositoryItem}>
-        <Text style={styles.repositoryName}>{item.name}</Text>
-        <Text style={styles.repositoryDescription}>{item.description}</Text>
-      </View>
+      <TouchableOpacity
+        style={styles.favoriteItem}
+        onPress={() => handleRemoveFavorite(item.id)}
+      >
+        <Text style={styles.favoriteUsername}>{item.login}</Text>
+        <FontAwesome name="trash" color="red" size={24} />
+      </TouchableOpacity>
     );
   };
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={repositories}
-        renderItem={renderRepositoryItem}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.repositoryList}
-      />
+      {favorites.length === 0 ? (
+        <Text style={styles.emptyText}>Nenhum usuário favorito</Text>
+      ) : (
+        <FlatList
+          data={favorites}
+          renderItem={renderFavoriteItem}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.favoriteList}
+        />
+      )}
     </View>
   );
 };
@@ -225,85 +219,86 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FDFDFD',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  favoriteList: {
     padding: 10,
   },
-  repositoryList: {
-    paddingBottom: 10,
-  },
-  repositoryItem: {
+  favoriteItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#7EB6FF',
-    padding: 10,
+    backgroundColor: '#F5F5F5',
     borderRadius: 5,
+    width: '100%',
   },
-  repositoryName: {
+  favoriteUsername: {
     fontSize: 16,
-    color: '#040404',
     fontWeight: 'bold',
+    color: '#040404',
   },
-  repositoryDescription: {
-    fontSize: 14,
-    color: '#D6D6D6',
-    marginTop: 5,
+  emptyText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#040404',
   },
 });
 
-export default RepositoryList;
+export default FavoritesButton;
 
       
-import React from 'react';
+      import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { FontAwesome } from '@expo/vector-icons';
-import Header from './components/Header';
-import SearchButton from './components/SearchButton';
-import FavoritesButton from './components/FavoritesButton';
+import { createStackNavigator } from '@react-navigation/stack';
 import UserList from './components/UserList';
-import RepositoryList from './components/RepositoryList';
+import FavoritesButton from './components/FavoritesButton';
 
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
 
-const App = () => {
-  return (
-    <NavigationContainer>
-      <Header />
-      <Tab.Navigator
-        tabBarOptions={{
-          style: {
-            backgroundColor: '#F5F5F5',
-            borderTopColor: '#040404',
-            borderTopWidth: 1,
-          },
-          activeTintColor: '#040404',
-          inactiveTintColor: '#D6D6D6',
-        }}
-      >
-        <Tab.Screen
-          name="Users"
-          component={UserList}
-          options={{
-            tabBarLabel: 'Usuários',
-            tabBarIcon: ({ color, size }) => (
-              <FontAwesome name="users" color={color} size={size} />
-            ),
-            tabBarRightButton: () => <SearchButton onPress={() => {}} />,
-          }}
-        />
-        <Tab.Screen
-          name="Favorites"
-          component={FavoritesButton}
-          options={{
-            tabBarLabel: 'Favoritos',
-            tabBarIcon: ({ color, size }) => (
-              <FontAwesome name="heart" color={color} size={size} />
-            ),
-            tabBarRightButton: () => <FavoritesButton onPress={() => {}} />,
-          }}
-        />
-      </Tab.Navigator>
-    </NavigationContainer>
-  );
-};
+const HomeScreen = () => (
+  <Stack.Navigator>
+    <Stack.Screen name="UserList" component={UserList} options={{ headerShown: false }} />
+  </Stack.Navigator>
+);
+
+const FavoritesScreen = () => (
+  <Stack.Navigator>
+    <Stack.Screen name="FavoritesButton" component={FavoritesButton} options={{ headerShown: false }} />
+  </Stack.Navigator>
+);
+
+const App = () => (
+  <NavigationContainer>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ color, size }) => {
+          let iconName;
+          if (route.name === 'Home') {
+            iconName = 'home';
+          } else if (route.name === 'Favorites') {
+            iconName = 'heart';
+          }
+          return <FontAwesome name={iconName} size={size} color={color} />;
+        },
+      })}
+      tabBarOptions={{
+        activeTintColor: '#040404',
+        inactiveTintColor: '#D6D6D6',
+        style: {
+          backgroundColor: '#F5F5F5',
+        },
+      }}
+    >
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Favorites" component={FavoritesScreen} />
+    </Tab.Navigator>
+  </NavigationContainer>
+);
 
 export default App;
